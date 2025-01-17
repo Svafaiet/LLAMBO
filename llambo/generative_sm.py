@@ -8,9 +8,6 @@ from aiohttp import ClientSession
 from llambo.rate_limiter import RateLimiter
 from llambo.generative_sm_utils import gen_prompt_tempates
 
-if "AVAL_API" in os.environ:
-    openai.base_url = "https://api.avalai.ir/v1"
-
 openai.api_type = os.environ["OPENAI_API_TYPE"]
 openai.api_version = os.environ["OPENAI_API_VERSION"]
 openai.api_base = os.environ["OPENAI_API_BASE"]
