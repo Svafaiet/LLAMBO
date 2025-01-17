@@ -306,7 +306,7 @@ Hyperparameter configuration:"""
                     max_tokens=500,
                     top_p=0.95,
                     n=self.n_gens,
-                    request_timeout=10
+                    # request_timeout=10
                 )
                 self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=start_time)
                 break

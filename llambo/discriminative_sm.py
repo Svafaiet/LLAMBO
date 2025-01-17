@@ -76,7 +76,7 @@ class LLM_DIS_SM:
                     max_tokens=8,
                     top_p=0.95,
                     n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
-                    request_timeout=10
+                    # request_timeout=10
                 )
                 self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
                 break
