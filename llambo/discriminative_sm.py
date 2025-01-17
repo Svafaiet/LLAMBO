@@ -69,7 +69,7 @@ class LLM_DIS_SM:
             try:
                 start_time = time.time()
                 self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                resp = await client.chat.completion.create(
+                resp = await client.chat.completions.create(
                     engine=self.chat_engine,
                     messages=message,
                     temperature=0.7,
@@ -139,7 +139,7 @@ class LLM_DIS_SM:
                     sample_preds = [np.nan] * self.n_gens
                 else:
                     sample_preds = []
-                    all_gens_text = [x['message']['content'] for template_response in sample_response for x in template_response[0]['choices'] ]        # fuarr this is some high level programming
+                    all_gens_text = [x.message.content for template_response in sample_response for x in template_response[0]['choices'] ]        # fuarr this is some high level programming
                     for gen_text in all_gens_text:
                         gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
                         if len(gen_pred) == 1:

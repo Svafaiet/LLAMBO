@@ -299,7 +299,7 @@ Hyperparameter configuration:"""
             try:
                 start_time = time.time()
                 self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                resp = await client.chat.completion.create(
+                resp = await client.chat.completions.create(
                     engine=self.chat_engine,
                     messages=message,
                     temperature=0.8,
@@ -487,8 +487,8 @@ Hyperparameter configuration:"""
                 if response is None:
                     continue
                 # loop through n_gen responses
-                for response_message in response[0]['choices']:
-                        response_content = response_message['message']['content']
+                for response_message in response[0].choices:
+                        response_content = response_message.message.content
                         try:
                             response_content = response_content.split('##')[1].strip()
                             candidate_points.append(self._convert_to_json(response_content))
