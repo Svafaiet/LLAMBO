@@ -3,10 +3,10 @@ import random
 import math
 import time
 import openai
+from openai import AsyncOpenAI
 import asyncio
 import numpy as np
 import pandas as pd
-from aiohttp import ClientSession
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
 from llambo.rate_limiter import RateLimiter
@@ -290,31 +290,31 @@ Hyperparameter configuration:"""
 
         MAX_RETRIES = 3
 
-        async with ClientSession(trust_env=True) as session:
-            openai.aiosession.set(session)
+        client = AsyncOpenAI(
+            api_key=openai.api_key,  # This is the default and can be omitted
+        )
 
-            resp = None
-            for retry in range(MAX_RETRIES):
-                try:
-                    start_time = time.time()
-                    self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                    resp = await openai.ChatCompletion.acreate(
-                        engine=self.chat_engine,
-                        messages=message,
-                        temperature=0.8,
-                        max_tokens=500,
-                        top_p=0.95,
-                        n=self.n_gens,
-                        request_timeout=10
-                    )
-                    self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=start_time)
-                    break
-                except Exception as e:
-                    print(f'[AF] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
-                    print(resp)
-                    print(e)
+        resp = None
+        for retry in range(MAX_RETRIES):
+            try:
+                start_time = time.time()
+                self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
+                resp = await client.chat.completion.create(
+                    engine=self.chat_engine,
+                    messages=message,
+                    temperature=0.8,
+                    max_tokens=500,
+                    top_p=0.95,
+                    n=self.n_gens,
+                    request_timeout=10
+                )
+                self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=start_time)
+                break
+            except Exception as e:
+                print(f'[AF] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
+                print(resp)
+                print(e)
 
-        await openai.aiosession.get().close()
 
         if resp is None:
             return None

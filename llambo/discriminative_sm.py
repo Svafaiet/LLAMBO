@@ -1,11 +1,11 @@
 import os
 import time
 import openai
+from openai import AsyncOpenAI
 import asyncio
 import re
 import numpy as np
 from scipy.stats import norm
-from aiohttp import ClientSession
 from llambo.rate_limiter import RateLimiter
 from llambo.discriminative_sm_utils import gen_prompt_tempates
 
@@ -59,35 +59,34 @@ class LLM_DIS_SM:
 
         MAX_RETRIES = 3
 
-        async with ClientSession(trust_env=True) as session:
-            openai.aiosession.set(session)
+        client = AsyncOpenAI(
+            api_key=openai.api_key,  # This is the default and can be omitted
+        )
 
-            resp = None
-            n_preds = int(self.n_gens/self.n_templates) if self.bootstrapping else int(self.n_gens)
-            for retry in range(MAX_RETRIES):
-                try:
-                    start_time = time.time()
-                    self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                    resp = await openai.ChatCompletion.acreate(
-                        engine=self.chat_engine,
-                        messages=message,
-                        temperature=0.7,
-                        max_tokens=8,
-                        top_p=0.95,
-                        n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
-                        request_timeout=10
-                    )
-                    self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
-                    break
-                except Exception as e:
-                    print(f'[SM] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
-                    print(resp)
-                    if retry == MAX_RETRIES-1:
-                        await openai.aiosession.get().close()
-                        raise e
-                    pass
-
-        await openai.aiosession.get().close()
+        resp = None
+        n_preds = int(self.n_gens/self.n_templates) if self.bootstrapping else int(self.n_gens)
+        for retry in range(MAX_RETRIES):
+            try:
+                start_time = time.time()
+                self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
+                resp = await client.chat.completion.create(
+                    engine=self.chat_engine,
+                    messages=message,
+                    temperature=0.7,
+                    max_tokens=8,
+                    top_p=0.95,
+                    n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
+                    request_timeout=10
+                )
+                self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
+                break
+            except Exception as e:
+                print(f'[SM] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
+                print(resp)
+                if retry == MAX_RETRIES-1:
+                    await openai.aiosession.get().close()
+                    raise e
+                pass
 
         if resp is None:
             return None

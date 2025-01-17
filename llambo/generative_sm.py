@@ -1,10 +1,10 @@
 import os
 import time
 import openai
+from openai import AsyncOpenAI
 import asyncio
 import numpy as np
 import pandas as pd
-from aiohttp import ClientSession
 from llambo.rate_limiter import RateLimiter
 from llambo.generative_sm_utils import gen_prompt_tempates
 
@@ -38,36 +38,35 @@ class LLM_GEN_SM:
 
         MAX_RETRIES = 3
 
-        async with ClientSession(trust_env=True) as session:
-            openai.aiosession.set(session)
+        client = AsyncOpenAI(
+            api_key=openai.api_key,  # This is the default and can be omitted
+        )
 
-            resp = None
-            n_preds = int(self.n_gens/self.n_templates)
-            for retry in range(MAX_RETRIES):
-                try:
-                    start_time = time.time()
-                    self.rate_limiter.add_request(request_text=prompt, current_time=start_time)
-                    resp = await openai.Completion.acreate(
-                        model="gpt-3.5-turbo-instruct",
-                        prompt=prompt,
-                        temperature=0.7,
-                        max_tokens=8,
-                        top_p=0.95,
-                        n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
-                        request_timeout=10,
-                        logprobs=5,
-                    )
-                    self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
-                    break
-                except Exception as e:
-                    print(f'[SM] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
-                    print(resp)
-                    if retry == MAX_RETRIES-1:
-                        await openai.aiosession.get().close()
-                        raise e
-                    pass
-
-        await openai.aiosession.get().close()
+        resp = None
+        n_preds = int(self.n_gens/self.n_templates)
+        for retry in range(MAX_RETRIES):
+            try:
+                start_time = time.time()
+                self.rate_limiter.add_request(request_text=prompt, current_time=start_time)
+                resp = await client.chat.completion.create(
+                    model="gpt-3.5-turbo-instruct",
+                    prompt=prompt,
+                    temperature=0.7,
+                    max_tokens=8,
+                    top_p=0.95,
+                    n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
+                    request_timeout=10,
+                    logprobs=5,
+                )
+                self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
+                break
+            except Exception as e:
+                print(f'[SM] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
+                print(resp)
+                if retry == MAX_RETRIES-1:
+                    await openai.aiosession.get().close()
+                    raise e
+                pass
 
         if resp is None:
             return None
